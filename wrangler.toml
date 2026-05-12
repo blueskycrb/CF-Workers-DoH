@@ -1,6 +1,10 @@
 name = "cf-workers-doh"
 main = "_worker.js"
 compatibility_date = "2026-05-12"
+workers_dev = true
+
+[observability]
+enabled = true
 
 # Optional runtime variables can be configured in Cloudflare Pages/Workers settings.
 # DOH = "cloudflare-dns.com"
