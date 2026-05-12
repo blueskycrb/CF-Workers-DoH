@@ -1,33 +1,21 @@
-const 默认DoH = "cloudflare-dns.com";
-const 默认DoH路径 = 'dns-query';
-
-function normalizeDoHHost(value) {
-  const doh = (value || 默认DoH).toString().trim();
-  const match = doh.match(/:\/\/([^\/]+)/);
-  return match ? match[1] : doh.replace(/^\/+|\/+$/g, '');
-}
-
-function normalizeDoHPath(value) {
-  return (value || 默认DoH路径).toString().trim().replace(/^\/+|\/+$/g, '') || 默认DoH路径;
-}
-
-function createConfig(env) {
-  const DoH = normalizeDoHHost(env.DOH);
-  const DoH路径 = normalizeDoHPath(env.PATH || env.TOKEN);
-  return {
-    DoH,
-    DoH路径,
-    jsonDoH: `https://${DoH}/resolve`,
-    dnsDoH: `https://${DoH}/dns-query`
-  };
-}
-
+let DoH = "cloudflare-dns.com";
+const jsonDoH = `https://${DoH}/resolve`;
+const dnsDoH = `https://${DoH}/dns-query`;
+let DoH路径 = 'dns-query';
 export default {
   async fetch(request, env) {
-    const config = createConfig(env);
-    const { DoH, DoH路径, dnsDoH } = config;
+    if (env.DOH) {
+      DoH = env.DOH;
+      const match = DoH.match(/:\/\/([^\/]+)/);
+      if (match) {
+        DoH = match[1];
+      }
+    }
+    DoH路径 = env.PATH || env.TOKEN || DoH路径;//DoH路径也单独设置 变量PATH
+    if (DoH路径.includes("/")) DoH路径 = DoH路径.split("/")[1];
     const url = new URL(request.url);
     const path = url.pathname;
+    const hostname = url.hostname;
 
     // 处理 OPTIONS 预检请求
     if (request.method === 'OPTIONS') {
@@ -43,11 +31,29 @@ export default {
 
     // 如果请求路径，则作为 DoH 服务器处理
     if (path === `/${DoH路径}`) {
-      return await DOHRequest(request, config);
+      return await DOHRequest(request);
     }
 
     // 添加IP地理位置信息查询代理
     if (path === '/ip-info') {
+      if (env.TOKEN) {
+        const token = url.searchParams.get('token');
+        if (token != env.TOKEN) {
+          return new Response(JSON.stringify({ 
+            status: "error",
+            message: "Token不正确",
+            code: "AUTH_FAILED",
+            timestamp: new Date().toISOString()
+          }, null, 4), {
+            status: 403,
+            headers: {
+              "content-type": "application/json; charset=UTF-8",
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      }
+
       const ip = url.searchParams.get('ip') || request.headers.get('CF-Connecting-IP');
       if (!ip) {
         return new Response(JSON.stringify({ 
@@ -115,18 +121,16 @@ export default {
 
       // 如果使用的是当前站点，则使用 DoH 服务
       if (doh.includes(url.host)) {
-        return await handleLocalDohRequest(domain, type, config);
+        return await handleLocalDohRequest(domain, type, hostname);
       }
 
       try {
         // 根据请求类型进行不同的处理
         if (type === "all") {
           // 同时请求 A、AAAA 和 NS 记录，使用新的查询函数
-          const [ipv4Result, ipv6Result, nsResult] = await Promise.all([
-            queryDns(doh, domain, "A"),
-            queryDns(doh, domain, "AAAA"),
-            queryDns(doh, domain, "NS")
-          ]);
+          const ipv4Result = await queryDns(doh, domain, "A");
+          const ipv6Result = await queryDns(doh, domain, "AAAA");
+          const nsResult = await queryDns(doh, domain, "NS");
 
           // 合并结果 - 修改Question字段处理方式以兼容不同格式
           const combinedResult = {
@@ -236,7 +240,7 @@ export default {
           },
         });
       } else return await 代理URL(env.URL, url);
-    } else return await HTML(config);
+    } else return await HTML();
   }
 }
 
@@ -309,8 +313,7 @@ async function queryDns(dohServer, domain, type) {
 }
 
 // 处理本地 DoH 请求的函数 - 直接调用 DoH，而不是自身服务
-async function handleLocalDohRequest(domain, type, config) {
-  const { dnsDoH } = config;
+async function handleLocalDohRequest(domain, type, hostname) {
   try {
     if (type === "all") {
       // 同时请求 A、AAAA 和 NS 记录
@@ -390,8 +393,7 @@ async function handleLocalDohRequest(domain, type, config) {
 }
 
 // DoH 请求处理函数
-async function DOHRequest(request, config) {
-  const { dnsDoH, jsonDoH } = config;
+async function DOHRequest(request) {
   const { method, headers, body } = request;
   const UA = headers.get('User-Agent') || 'DoH Client';
   const url = new URL(request.url);
@@ -499,8 +501,7 @@ async function DOHRequest(request, config) {
   }
 }
 
-async function HTML(config) {
-  const { DoH, DoH路径 } = config;
+async function HTML() {
   // 否则返回 HTML 页面
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1110,7 +1111,7 @@ async function HTML(config) {
     async function queryIpGeoInfo(ip) {
       try {
         // 改为使用我们自己的代理接口
-        const response = await fetch(\`./ip-info?ip=\${encodeURIComponent(ip)}\`);
+        const response = await fetch(\`./ip-info?ip=\${ip}&token=${DoH路径}\`);
             if (!response.ok) {
               throw new Error(\`HTTP 错误: \${response.status}\`);
             }
