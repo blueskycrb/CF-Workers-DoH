@@ -13,7 +13,7 @@ function normalizeDoHPath(value) {
 
 function createConfig(env) {
   const DoH = normalizeDoHHost(env.DOH);
-  const DoH路径 = normalizeDoHPath(env.PATH);
+  const DoH路径 = normalizeDoHPath(env.PATH || env.TOKEN);
   return {
     DoH,
     DoH路径,
