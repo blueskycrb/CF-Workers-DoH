@@ -1,8 +1,8 @@
 const https = require('https');
 const { URL } = require('url');
 
-const endpoint = 'https://doh.cmliussss.hidns.co/CMLiussss';
-const testDomain = 'google.com';  // 要测试解析的域名
+const endpoint = process.env.ENDPOINT || 'https://doh.cmliussss.hidns.co/dns-query';
+const testDomain = process.env.DOMAIN || 'google.com';  // 要测试解析的域名
 
 function base64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

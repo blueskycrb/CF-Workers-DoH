@@ -7,7 +7,7 @@ CF-Workers-DoH 是一个基于 Cloudflare Workers 构建的 DNS over HTTPS (DoH)
 > **doh.cmliussss.hidns.co 已被GFW阻断，需自行部署使用。**
 
 > [!WARNING]
-> 如需搭建非公益服务，请务必添加`TOKEN`与`URL`变量，`URL`变量推荐为 **nginx** 即可！
+> 如需搭建非公益服务，建议设置自定义 `PATH` 与 `URL` 变量，`URL`变量推荐为 **nginx** 即可！
 
 ## 🚀 部署方式
 
@@ -31,7 +31,7 @@ https://doh.cmliussss.hidns.co/dns-query
 https://doh.cmliussss.hidns.co:2053/dns-query
 ```
 
-- 如您设置了`TOKEN`变量为 **CMLiussss**，则
+- 如您设置了`PATH`变量为 **CMLiussss**，则
 ```url
 https://doh.cmliussss.hidns.co/CMLiussss
 ```
@@ -42,21 +42,12 @@ https://doh.cmliussss.hidns.co/CMLiussss
 https://doh.cmliussss.hidns.co/ip-info
 ```
 
-- 如您设置了`TOKEN`变量为 **CMLiussss**，则
-```url
-https://doh.cmliussss.hidns.co/ip-info?token=CMLiussss
-```
 
 #### 🔍 查询指定IP信息
 ```url
 https://doh.cmliussss.hidns.co/ip-info?ip=8.8.8.8
 ```
 
-- 如您设置了`TOKEN`变量为 **CMLiussss**，则
-
-```url
-https://doh.cmliussss.hidns.co/ip-info?ip=8.8.8.8&token=CMLiussss
-```
 
 #### 📝 **返回信息示例**
 ```json
@@ -86,7 +77,7 @@ https://doh.cmliussss.hidns.co/ip-info?ip=8.8.8.8&token=CMLiussss
 | 变量名 | 示例 | 必填 | 备注 | 
 |--|--|--|--|
 | DOH | `dns.google` |❌| 设置上游DoH服务（默认：`cloudflare-dns.com`） |
-| TOKEN | `dns-query` |❌| 设置请求DoH服务路径（默认：`/dns-query`） |
+| PATH | `dns-query` |❌| 设置请求DoH服务路径（默认：`/dns-query`） |
 | URL | `https://www.baidu.com/` |❌| 主页伪装（设为`nginx`则伪装为nginx默认页面） |
 | URL302 | `https://t.me/CMLiussss` |❌| 主页302跳转（与`URL`变量同时存在时优先执行`URL302`）|
 
