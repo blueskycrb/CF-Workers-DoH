@@ -1,18 +1,25 @@
 let DoH = "cloudflare-dns.com";
-const jsonDoH = `https://${DoH}/resolve`;
-const dnsDoH = `https://${DoH}/dns-query`;
-let DoH路径 = 'dns-query';
+let jsonDoH = `https://${DoH}/resolve`;
+let dnsDoH = `https://${DoH}/dns-query`;
+const 默认DoH路径 = 'dns-query';
+let DoH路径 = 默认DoH路径;
+
+function normalizeDoHHost(value) {
+  const doh = (value || DoH).toString().trim();
+  const match = doh.match(/:\/\/([^\/]+)/);
+  return match ? match[1] : doh.replace(/^\/+|\/+$/g, '');
+}
+
+function normalizeDoHPath(value) {
+  return (value || 默认DoH路径).toString().trim().replace(/^\/+|\/+$/g, '') || 默认DoH路径;
+}
+
 export default {
   async fetch(request, env) {
-    if (env.DOH) {
-      DoH = env.DOH;
-      const match = DoH.match(/:\/\/([^\/]+)/);
-      if (match) {
-        DoH = match[1];
-      }
-    }
-    DoH路径 = env.PATH || env.TOKEN || DoH路径;//DoH路径也单独设置 变量PATH
-    if (DoH路径.includes("/")) DoH路径 = DoH路径.split("/")[1];
+    DoH = normalizeDoHHost(env.DOH);
+    jsonDoH = `https://${DoH}/resolve`;
+    dnsDoH = `https://${DoH}/dns-query`;
+    DoH路径 = normalizeDoHPath(env.PATH || env.TOKEN);//DoH路径也单独设置 变量PATH
     const url = new URL(request.url);
     const path = url.pathname;
     const hostname = url.hostname;
