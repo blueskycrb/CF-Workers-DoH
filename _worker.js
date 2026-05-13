@@ -2,6 +2,372 @@ let DoH = "cloudflare-dns.com";
 const jsonDoH = `https://${DoH}/resolve`;
 const dnsDoH = `https://${DoH}/dns-query`;
 let DoH路径 = 'dns-query';
+// Generated from https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx
+// Only DNS-applicable REJECT rules are included: DOMAIN, DOMAIN-SUFFIX, DOMAIN-KEYWORD.
+// Source fetched with Loon-compatible User-Agent.
+
+const AD_BLOCK_EXACT = [
+  "acjs.aliyun.com",
+  "acs4baichuan.m.taobao.com",
+  "ad-evods.tianya.tv",
+  "ad.aggrxinc.com",
+  "ad.shunchangzhixing.com",
+  "adapi.izuiyou.com",
+  "adash.man.aliyuncs.com",
+  "ads.cup.com.cn",
+  "ads.privacy.qq.com",
+  "adsmind.gdtimg.com",
+  "adsmind.ugdtimg.com",
+  "adtrack.e.kuaishou.com",
+  "afd.baidu.com",
+  "al-log.d.meituan.net",
+  "als.baidu.com",
+  "api.sm.cn",
+  "api.touch-moblie.com",
+  "app-analytics-services.com",
+  "applog.uc.cn",
+  "arms-retcode.aliyuncs.com",
+  "atoken.m.taobao.com",
+  "babel-statistics-android.d.meituan.net",
+  "baichuan-sdk.alicdn.com",
+  "beacon-api.aliyuncs.com",
+  "bgg.baidu.com",
+  "c.sm.cn",
+  "click-bes.baidu.com",
+  "content-understand-strategy.sm.cn",
+  "cpc-service-square.aiclk.com",
+  "cpro.baidustatic.com",
+  "df.tanx.com",
+  "dig.bdurl.net",
+  "dsp-x.jd.com",
+  "eclick.baidu.com",
+  "ems.youku.com",
+  "et.tanx.com",
+  "extlog.snssdk.com",
+  "feed-image.baidu.com",
+  "firebaseinappmessaging.googleapis.com",
+  "firebaselogging-pa.googleapis.com",
+  "fundingchoicesmessages.google.com",
+  "gdfp.gifshow.com",
+  "gorgon.youdao.com",
+  "guide2.bianxianmao.com",
+  "h.trace.qq.com",
+  "hc-ssp.sm.cn",
+  "huatuocode.huatuo.qq.com",
+  "hudong.alicdn.com",
+  "huichuan-mc.sm.cn",
+  "huichuan.sm.cn",
+  "iad.g.163.com",
+  "im-x.jd.com",
+  "info4.video.qq.com",
+  "info6.video.qq.com",
+  "ios.bugly.qq.com",
+  "ios.video.mpush.qq.com",
+  "janapi.jd.com",
+  "lf-ad-ies.bytecdn.cn",
+  "logrcv.aiclk.com",
+  "maplocatesdksnapshot.d.meituan.net",
+  "mcs.snssdk.com",
+  "mercury-gateway.ixiaochuan.cn",
+  "metrics-picture.d.meituan.net",
+  "miniapp-ad.cdn.bcebos.com",
+  "mobads-logs.baidu.com",
+  "mobads-pre-config.cdn.bcebos.com",
+  "mobads.baidu.com",
+  "nadvideo2.baidu.com",
+  "nex.163.com",
+  "odm.app-ads-services.com",
+  "opehs.tanx.com",
+  "open.e.kuaishou.cn",
+  "open.e.kuaishou.com",
+  "ossgw.alicdn.com",
+  "oth.str.mdt.qq.com",
+  "otheve.beacon.qq.com",
+  "partner.uc.cn",
+  "pgdt.gtimg.cn",
+  "pgdt.ugdtimg.com",
+  "pro.bugly.qq.com",
+  "qzs.gdtimg.com",
+  "qzs.qq.com",
+  "redirect.shunchangzhixing.com",
+  "retcode.alicdn.com",
+  "rmonitor.qq.com",
+  "route-stats.d.meituan.net",
+  "sdk-log.partner.sm.cn",
+  "sdk.e.qq.com",
+  "sdk.zhangyuyidong.cn",
+  "sdkconfig.video.qq.com",
+  "sdklog.zhangyuyidong.cn",
+  "stat.y.qq.com",
+  "stat6.y.qq.com",
+  "statis.miwuad.com",
+  "tangram.e.qq.com",
+  "tmead.y.qq.com",
+  "tmeadbak.y.qq.com",
+  "tmeadcomm.y.qq.com",
+  "tpns.qq.com",
+  "tpstelemetry.tencent.com",
+  "wn.pos.baidu.com",
+  "wup.imtt.qq.com",
+  "xlog.jd.com"
+];
+
+const AD_BLOCK_SUFFIX = [
+  "17admob.com",
+  "1rtb.com",
+  "1rtb.net",
+  "66mobi.com",
+  "ad-scope.com.cn",
+  "ad.xelements.cn",
+  "ad.xiaomi.com",
+  "adfunlink.com",
+  "adhub.com.cn",
+  "adintl.cn",
+  "adjust.com",
+  "adjust.net.in",
+  "adkwai.com",
+  "admobile.mobi",
+  "admobile.net.cn",
+  "admobile.top",
+  "admobile.vip",
+  "adn-plus.com.cn",
+  "adnplus.com.cn",
+  "ads.vungle.com",
+  "adsappier.com",
+  "adscope.cn",
+  "adscope.com.cn",
+  "adscope.xyz",
+  "adshenshi.com",
+  "adsmoloco.com",
+  "adsrvr.cn",
+  "adsrvr.org",
+  "adtaipo.com",
+  "adtianmai.com",
+  "adukwai.com",
+  "advlion.com",
+  "adwangmai.com",
+  "adx.yixin.im",
+  "amazon-adsystem.com",
+  "anyrtb.com",
+  "anythinktech.com",
+  "api.touch-moblie.com",
+  "applovin.com",
+  "applvn.com",
+  "appsad.cn",
+  "appsflyersdk.com",
+  "artcto.com",
+  "bayescom.com",
+  "bds.snssdk.com",
+  "beanxin.com",
+  "beizi.biz",
+  "beizi.info",
+  "beizi.online",
+  "birdgesdk.com",
+  "bridgeoos.com",
+  "bxsnews.com",
+  "byteadverts.com",
+  "combocn.com",
+  "ctobsnssdk.com",
+  "deepinstall.com",
+  "domob.cn",
+  "doubleclick-cn.net",
+  "doubleclick.net",
+  "dratio.com",
+  "dutils.com",
+  "eshiqi.com",
+  "etoolads.cn",
+  "fancyapi.com",
+  "fancydsp.com",
+  "fanglinad.com",
+  "fireluck.cn",
+  "fwosapp.com",
+  "gdt.qq.com",
+  "getui.com",
+  "getui.net",
+  "googlesyndication-cn.com",
+  "halomobi.com",
+  "hubcloud.com.cn",
+  "iaddata.com",
+  "iads.unity3d.com",
+  "igexin.com",
+  "imtmp.net",
+  "inmobi.cn",
+  "inmobi.com",
+  "inmobicdn.net",
+  "installtongji.online",
+  "installtongji.top",
+  "jiguang.cn",
+  "jpush.cn",
+  "jpush.io",
+  "kuaichuanad.com",
+  "kuaiyiad.com",
+  "l.qq.com",
+  "letway.cn",
+  "lnk0.com",
+  "lydaas.cn",
+  "lydaas.com",
+  "lydaas.com.cn",
+  "lydaas.net",
+  "lydass.cn",
+  "lydass.com.cn",
+  "lydass.net",
+  "maplehaze.cn",
+  "medproad.com",
+  "mentamob.com",
+  "miaozhen.com",
+  "mob.com",
+  "mobmore.com",
+  "mobrtb.com",
+  "moloco.com",
+  "motowoo.com",
+  "newitai.com",
+  "opadlink.com",
+  "openinstall.com",
+  "openinstall.io",
+  "openinstall.online",
+  "openinstall.top",
+  "openlink.cc",
+  "oplinking.com",
+  "opstatistics.cn",
+  "opstatistics.com",
+  "pangle.io",
+  "partner.gifshow.com",
+  "popadshop.com",
+  "puata.info",
+  "qchannel01.cn",
+  "qidianad.com",
+  "ranfenghd.com",
+  "rayjump.com",
+  "readgps.com",
+  "rhinokeen.com",
+  "richmob.cn",
+  "rixengine.com",
+  "setway.cn",
+  "shanghailingye.cn",
+  "shenshiads.com",
+  "sigmob.cn",
+  "slyxmobi.com",
+  "smadex.com",
+  "staevent.work",
+  "staevent.xyz",
+  "statchannel.store",
+  "statchannel.top",
+  "statschannel.xyz",
+  "statsinstall.xyz",
+  "supersonicads.com",
+  "tapad.com",
+  "tapjoy.com",
+  "tianmu.mobi",
+  "toponadss.com",
+  "tradplusad.com",
+  "tuia.cn",
+  "ubixioe.com",
+  "ugdtimg.com",
+  "um0.cn",
+  "um1.cn",
+  "umeng.com",
+  "umengcloud.com",
+  "umsns.com",
+  "umtrack.com",
+  "umtrack0.com",
+  "umtrack1.com",
+  "umtrack2.com",
+  "umv0.com",
+  "umv5.com",
+  "union.baidu.cn",
+  "union.baidu.com",
+  "unityads.unitychina.cn",
+  "uyunad.com",
+  "wayio.cn",
+  "whalecloud.com",
+  "wrating.com",
+  "xcultur.com",
+  "xdplt.com",
+  "xinduoad.com",
+  "xixikf.com",
+  "yksdks.com"
+];
+
+const AD_BLOCK_KEYWORD = [
+  "-ad-sign.byteimg.com",
+  "-ad.byteoversea.com",
+  "ad.hunyuan.tencent.com",
+  "adstrategy",
+  "asiad.byteactivity",
+  "bjimp.voiceads.cn",
+  "iflyad.bj.openstorage.cn",
+  "pangolin",
+  "panplayable-toutiao",
+  "pglstatp",
+  "trace.qq.com",
+  "trace.video.qq.com"
+];
+
+
+function normalizeAdBlockDomain(domain) {
+  return (domain || '').toString().trim().toLowerCase().replace(/^\.+|\.+$/g, '');
+}
+
+function isAdBlockedDomain(domain) {
+  const name = normalizeAdBlockDomain(domain);
+  if (!name) return false;
+
+  if (AD_BLOCK_EXACT.includes(name)) return true;
+
+  if (AD_BLOCK_SUFFIX.some(suffix => name === suffix || name.endsWith('.' + suffix))) return true;
+
+  return AD_BLOCK_KEYWORD.some(keyword => name.includes(keyword));
+}
+
+function dnsTypeCode(type) {
+  const normalized = (type || 'A').toString().toUpperCase();
+  if (normalized === 'AAAA' || normalized === '28') return 28;
+  if (normalized === 'NS' || normalized === '2') return 2;
+  return 1;
+}
+
+function blockedDnsJsonResponse(domain, type) {
+  const normalizedType = (type || 'A').toString().toUpperCase();
+  const question = [];
+  const answer = [];
+  const addRecord = (recordType, data) => {
+    question.push({ name: domain, type: recordType });
+    answer.push({ name: domain, type: recordType, TTL: 60, data });
+  };
+
+  if (normalizedType === 'ALL') {
+    addRecord(1, '0.0.0.0');
+    addRecord(28, '::');
+  } else if (dnsTypeCode(normalizedType) === 28) {
+    addRecord(28, '::');
+  } else if (dnsTypeCode(normalizedType) === 1) {
+    addRecord(1, '0.0.0.0');
+  } else {
+    question.push({ name: domain, type: dnsTypeCode(normalizedType) });
+  }
+
+  return new Response(JSON.stringify({
+    Status: 0,
+    TC: false,
+    RD: true,
+    RA: true,
+    AD: false,
+    CD: false,
+    Question: question,
+    Answer: answer,
+    ipv4: { records: answer.filter(record => record.type === 1) },
+    ipv6: { records: answer.filter(record => record.type === 28) },
+    ns: { records: [] },
+    blocked: true,
+    blockedBy: 'adblock'
+  }, null, 2), {
+    headers: {
+      "content-type": "application/json; charset=UTF-8",
+      'Access-Control-Allow-Origin': '*'
+    }
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (env.DOH) {
@@ -118,6 +484,11 @@ export default {
       const domain = url.searchParams.get("domain") || url.searchParams.get("name") || "www.google.com";
       const doh = url.searchParams.get("doh") || dnsDoH;
       const type = url.searchParams.get("type") || "all"; // 默认同时查询 A 和 AAAA
+
+      // 广告域名拦截，仅处理页面和 JSON 查询入口，不影响标准 DoH wire-format 请求
+      if (isAdBlockedDomain(domain)) {
+        return blockedDnsJsonResponse(domain, type);
+      }
 
       // 如果使用的是当前站点，则使用 DoH 服务
       if (doh.includes(url.host)) {
