@@ -75,6 +75,14 @@ await assertOk('DoH2 auto split sends domestic domain to AliDNS', async () => {
   if (!lastFetchUrl.startsWith('https://dns.alidns.com/resolve') || data.split !== 'domestic') throw new Error('domestic split failed: ' + lastFetchUrl);
 });
 
+await assertOk('DoH2 auto split uses imported china.list suffixes', async () => {
+  fetchCalls = 0;
+  lastFetchUrl = '';
+  const res = await worker.fetch(new Request('https://example.com/json?name=example.123pan.com&type=A&resolver=auto'), env);
+  const data = await res.json();
+  if (!lastFetchUrl.startsWith('https://dns.alidns.com/resolve') || data.split !== 'domestic') throw new Error('china.list suffix split failed: ' + lastFetchUrl);
+});
+
 await assertOk('DoH2 auto split sends foreign domain to Cloudflare', async () => {
   fetchCalls = 0;
   lastFetchUrl = '';
