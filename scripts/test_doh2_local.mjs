@@ -67,6 +67,13 @@ await assertOk('DoH2 JSON normal query', async () => {
 
 
 
+
+await assertOk('DoH2 split API explains selected DNS', async () => {
+  const res = await worker.fetch(new Request('https://example.com/split?name=example.123pan.com&resolver=auto'), env);
+  const data = await res.json();
+  if (data.split !== 'domestic' || data.upstream !== 'AliDNS' || data.ruleType !== 'DOMAIN-SUFFIX' || data.rule !== '123pan.com') throw new Error('bad split info');
+});
+
 await assertOk('DoH2 auto split sends domestic domain to AliDNS', async () => {
   fetchCalls = 0;
   lastFetchUrl = '';

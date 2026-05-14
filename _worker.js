@@ -2470,6 +2470,36 @@ function doh2IsDomesticDomain(name) {
   return CHINA_RULE_KEYWORD.some(keyword => keyword && domain.includes(keyword));
 }
 
+function doh2MatchDomesticRule(name) {
+  const domain = doh2NormalizeDomain(name);
+  if (!domain) return { split: 'foreign', matched: false, ruleType: null, rule: null };
+  if (CHINA_RULE_EXACT.includes(domain)) return { split: 'domestic', matched: true, ruleType: 'DOMAIN', rule: domain };
+  const suffix = CHINA_RULE_SUFFIX.find(item => domain === item || domain.endsWith('.' + item));
+  if (suffix) return { split: 'domestic', matched: true, ruleType: 'DOMAIN-SUFFIX', rule: suffix };
+  const keyword = CHINA_RULE_KEYWORD.find(item => item && domain.includes(item));
+  if (keyword) return { split: 'domestic', matched: true, ruleType: 'DOMAIN-KEYWORD', rule: keyword };
+  return { split: 'foreign', matched: false, ruleType: null, rule: null };
+}
+
+function doh2SplitInfo(name, resolver, config) {
+  const requested = (resolver || config.upstreamKey || 'auto').toString().toLowerCase();
+  const auto = !requested || requested === 'auto';
+  const match = doh2MatchDomesticRule(name);
+  const upstream = auto ? doh2SelectUpstream(name, 'auto', config) : doh2Upstream(requested, config.foreignUpstream);
+  return {
+    domain: doh2NormalizeDomain(name),
+    mode: auto ? 'auto' : 'manual',
+    resolver: auto ? 'auto' : requested,
+    split: auto ? match.split : 'manual',
+    matched: auto ? match.matched : null,
+    ruleType: auto ? match.ruleType : null,
+    rule: auto ? match.rule : null,
+    upstream: upstream.label,
+    domesticUpstream: DOH2_UPSTREAMS[config.domesticUpstream]?.label || config.domesticUpstream,
+    foreignUpstream: DOH2_UPSTREAMS[config.foreignUpstream]?.label || config.foreignUpstream,
+  };
+}
+
 function doh2SelectUpstream(name, resolver, config) {
   const requested = (resolver || config.upstreamKey || 'auto').toString().toLowerCase();
   if (requested && requested !== 'auto') return doh2Upstream(requested, config.foreignUpstream);
@@ -2526,7 +2556,7 @@ function doh2Html(config, host) {
   const jsonUrl = `${base}/json?name=www.google.com&type=A&resolver=auto`;
   const upstreamOptions = Object.entries(DOH2_UPSTREAMS).map(([key, item]) => `<option value="${key}" ${key === config.upstreamKey ? 'selected' : ''}>${item.label}</option>`).join('');
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DoH 2.0</title><style>
-body{margin:0;background:#0b1020;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:880px;margin:0 auto;padding:28px 18px}.card{background:#111827;border:1px solid #263244;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 12px 30px #0004}h1{margin:0 0 8px;font-size:30px}.muted{color:#9ca3af}.grid{display:grid;grid-template-columns:1fr 130px 150px;gap:10px}@media(max-width:680px){.grid{grid-template-columns:1fr}}input,select,button{border-radius:12px;border:1px solid #374151;background:#0b1220;color:#e5e7eb;padding:12px;font-size:15px}button{background:#2563eb;border-color:#3b82f6;font-weight:700}code,pre{white-space:pre-wrap;word-break:break-all;background:#050814;border:1px solid #1f2937;border-radius:12px;padding:12px;display:block}.ok{color:#86efac}.warn{color:#fbbf24}</style></head><body><div class="wrap"><h1>DoH 2.0</h1><p class="muted">私密路径 + 多上游 + JSON 调试 + 广告域名拦截；国内外域名自动分流；IPv4 无结果时自动展示 IPv6。不记录查询日志。</p><div class="card"><div class="muted">标准 DoH 地址</div><code>${endpoint}</code><p class="muted">JSON 调试接口</p><code>${jsonUrl}</code><p class="${config.adblock ? 'ok' : 'warn'}">AdBlock: ${config.adblock ? 'ON' : 'OFF'}</p></div><div class="card"><div class="grid"><input id="name" value="www.google.com" placeholder="domain"><select id="type"><option>A</option><option>AAAA</option><option>NS</option><option>TXT</option><option value="all">all</option></select><select id="resolver">${upstreamOptions}</select></div><p><button onclick="q()">查询</button></p><pre id="out">等待查询…</pre></div><div class="card"><p class="muted">客户端示例</p><code>Loon/Surge/Clash DoH: ${endpoint}</code><p class="muted">建议不要公开分享私密路径；如需更换，在 Cloudflare Worker 变量里设置 DOH2_PATH。</p></div></div><script>async function q(){const n=document.getElementById('name').value||'www.google.com';const t=document.getElementById('type').value;const r=document.getElementById('resolver').value;const res=await fetch('/json?name='+encodeURIComponent(n)+'&type='+encodeURIComponent(t)+'&resolver='+encodeURIComponent(r));document.getElementById('out').textContent=JSON.stringify(await res.json(),null,2)}q()</script></body></html>`;
+body{margin:0;background:#0b1020;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:880px;margin:0 auto;padding:28px 18px}.card{background:#111827;border:1px solid #263244;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 12px 30px #0004}h1{margin:0 0 8px;font-size:30px}.muted{color:#9ca3af}.grid{display:grid;grid-template-columns:1fr 130px 150px;gap:10px}@media(max-width:680px){.grid{grid-template-columns:1fr}}input,select,button{border-radius:12px;border:1px solid #374151;background:#0b1220;color:#e5e7eb;padding:12px;font-size:15px}button{background:#2563eb;border-color:#3b82f6;font-weight:700}code,pre{white-space:pre-wrap;word-break:break-all;background:#050814;border:1px solid #1f2937;border-radius:12px;padding:12px;display:block}.ok{color:#86efac}.warn{color:#fbbf24}</style></head><body><div class="wrap"><h1>DoH 2.0</h1><p class="muted">私密路径 + 多上游 + JSON 调试 + 广告域名拦截；国内外域名自动分流；IPv4 无结果时自动展示 IPv6。不记录查询日志。</p><div class="card"><div class="muted">标准 DoH 地址</div><code>${endpoint}</code><p class="muted">JSON 调试接口</p><code>${jsonUrl}</code><p class="${config.adblock ? 'ok' : 'warn'}">AdBlock: ${config.adblock ? 'ON' : 'OFF'}</p></div><div class="card"><div class="grid"><input id="name" value="www.google.com" placeholder="domain"><select id="type"><option>A</option><option>AAAA</option><option>NS</option><option>TXT</option><option value="all">all</option></select><select id="resolver">${upstreamOptions}</select></div><p><button onclick="q()">查询</button> <button onclick="s()">查看走哪个 DNS</button></p><pre id="out">等待查询…</pre></div><div class="card"><p class="muted">客户端示例</p><code>Loon/Surge/Clash DoH: ${endpoint}</code><p class="muted">建议不要公开分享私密路径；如需更换，在 Cloudflare Worker 变量里设置 DOH2_PATH。</p></div></div><script>async function q(){const n=document.getElementById('name').value||'www.google.com';const t=document.getElementById('type').value;const r=document.getElementById('resolver').value;const res=await fetch('/json?name='+encodeURIComponent(n)+'&type='+encodeURIComponent(t)+'&resolver='+encodeURIComponent(r));document.getElementById('out').textContent=JSON.stringify(await res.json(),null,2)}async function s(){const n=document.getElementById('name').value||'www.google.com';const r=document.getElementById('resolver').value;const res=await fetch('/split?name='+encodeURIComponent(n)+'&resolver='+encodeURIComponent(r));const data=await res.json();document.getElementById('out').textContent=JSON.stringify(data,null,2)}q()</script></body></html>`;
 }
 
 async function doh2HandleJson(request, env) {
@@ -2597,6 +2627,12 @@ export default {
       return new Response(doh2Html(doh2, url.host), {
         headers: doh2CorsHeaders({ 'Content-Type': 'text/html; charset=UTF-8', 'cache-control': 'no-store' })
       });
+    }
+
+    if (path === '/split' || path === '/api/split') {
+      const name = url.searchParams.get('name') || url.searchParams.get('domain') || '';
+      const resolver = url.searchParams.get('resolver') || doh2.upstreamKey;
+      return doh2Json(doh2SplitInfo(name, resolver, doh2));
     }
 
     if (path === '/json' || path === '/api/dns') {
