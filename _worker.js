@@ -3580,10 +3580,12 @@ async function HTML() {
               <button type="button" class="btn btn-outline-secondary" id="clearBtn">清除</button>
             </div>
           </div>
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-2 flex-wrap">
             <button type="submit" class="btn btn-primary flex-grow-1">解析</button>
+            <button type="button" class="btn btn-outline-primary" id="checkDnsBtn">查看走哪个 DNS</button>
             <button type="button" class="btn btn-outline-primary" id="getJsonBtn">Get Json</button>
           </div>
+          <div id="splitInfo" class="alert alert-light border mt-3" style="display:none;"></div>
         </form>
       </div>
     </div>
@@ -4183,6 +4185,28 @@ async function HTML() {
               });
             });
           }
+
+          // 添加分流检查按钮的点击事件
+          document.getElementById('checkDnsBtn').addEventListener('click', async function() {
+            const domain = document.getElementById('domain').value;
+            const info = document.getElementById('splitInfo');
+            if (!domain) {
+              alert('请输入需要解析的域名');
+              return;
+            }
+            info.style.display = 'block';
+            info.textContent = '正在判断分流...';
+            try {
+              const response = await fetch('/split?name=' + encodeURIComponent(domain) + '&resolver=auto');
+              if (!response.ok) throw new Error('HTTP 错误: ' + response.status);
+              const data = await response.json();
+              const splitText = data.split === 'domestic' ? '国内' : (data.split === 'foreign' ? '国外' : data.split);
+              const ruleText = data.matched ? (data.ruleType + ': ' + data.rule) : '未命中国内规则';
+              info.innerHTML = '<strong>' + (data.domain || domain) + '</strong><br>分流：<strong>' + splitText + '</strong><br>使用 DNS：<strong>' + data.upstream + '</strong><br>匹配规则：' + ruleText;
+            } catch (error) {
+              info.textContent = '分流检查失败: ' + error.message;
+            }
+          });
 
           // 添加Get Json按钮的点击事件
           document.getElementById('getJsonBtn').addEventListener('click', function() {
