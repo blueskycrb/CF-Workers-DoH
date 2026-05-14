@@ -383,7 +383,9 @@ const DOH2_UPSTREAMS = {
   'sm2-dnspod': { label: 'DNSPod SM2', json: 'https://sm2.doh.pub/dns-query', wire: 'https://sm2.doh.pub/dns-query' }
 };
 
-// Generated from https://github.com/blueskycrb/ios_surge/blob/main/china.list
+// BEGIN GENERATED CHINA RULES
+// Generated from https://raw.githubusercontent.com/blueskycrb/ios_surge/main/china.list
+// Includes DOMAIN, DOMAIN-SUFFIX, and DOMAIN-KEYWORD rules.
 const CHINA_RULE_EXACT = [
   "1panel.cn",
   "aliys.cn",
@@ -2397,7 +2399,6 @@ const CHINA_RULE_SUFFIX = [
 ];
 
 const CHINA_RULE_KEYWORD = [
-  "tmall.com",
   "1drv",
   "alicdn",
   "alipay",
@@ -2414,10 +2415,11 @@ const CHINA_RULE_KEYWORD = [
   "skydrive",
   "stripe",
   "taobao",
+  "tmall.com",
   "weibo",
   "wise"
 ];
-
+// END GENERATED CHINA RULES
 const DOH2_DOMESTIC_SUFFIXES = CHINA_RULE_SUFFIX;
 
 function doh2CorsHeaders(extra = {}) {
