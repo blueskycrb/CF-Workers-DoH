@@ -370,11 +370,26 @@ function blockedDnsJsonResponse(domain, type) {
 
 
 const DOH2_UPSTREAMS = {
+  auto: { label: 'Auto split', json: 'auto', wire: 'auto' },
   cloudflare: { label: 'Cloudflare', json: 'https://cloudflare-dns.com/dns-query', wire: 'https://cloudflare-dns.com/dns-query' },
+  'cloudflare-security': { label: 'Cloudflare Security', json: 'https://security.cloudflare-dns.com/dns-query', wire: 'https://security.cloudflare-dns.com/dns-query' },
+  'cloudflare-family': { label: 'Cloudflare Family', json: 'https://family.cloudflare-dns.com/dns-query', wire: 'https://family.cloudflare-dns.com/dns-query' },
   google: { label: 'Google', json: 'https://dns.google/resolve', wire: 'https://dns.google/dns-query' },
   quad9: { label: 'Quad9', json: 'https://dns.quad9.net/dns-query', wire: 'https://dns.quad9.net/dns-query' },
-  adguard: { label: 'AdGuard', json: 'https://dns.adguard-dns.com/resolve', wire: 'https://dns.adguard-dns.com/dns-query' }
+  adguard: { label: 'AdGuard', json: 'https://dns.adguard-dns.com/resolve', wire: 'https://dns.adguard-dns.com/dns-query' },
+  alidns: { label: 'AliDNS', json: 'https://dns.alidns.com/resolve', wire: 'https://dns.alidns.com/dns-query' },
+  '360': { label: '360 DNS', json: 'https://doh.360.cn/resolve', wire: 'https://doh.360.cn/dns-query' },
+  dnspod: { label: 'DNSPod', json: 'https://doh.pub/dns-query', wire: 'https://doh.pub/dns-query' },
+  'sm2-dnspod': { label: 'DNSPod SM2', json: 'https://sm2.doh.pub/dns-query', wire: 'https://sm2.doh.pub/dns-query' }
 };
+
+const DOH2_DOMESTIC_SUFFIXES = [
+  'cn', '中国', '公司', '网络', '政务', '公益',
+  'baidu.com', 'qq.com', 'tencent.com', 'wechat.com', 'weixin.qq.com', 'taobao.com', 'tmall.com', 'jd.com',
+  'alicdn.com', 'aliyun.com', 'alipay.com', '163.com', '126.com', 'netease.com', 'bilibili.com', 'douyin.com',
+  'snssdk.com', 'byteimg.com', 'bytedance.com', 'xiaomi.com', 'mi.com', 'huawei.com', 'meituan.com', 'amap.com',
+  'sina.com.cn', 'weibo.com', 'zhihu.com', 'douban.com', 'iqiyi.com', 'youku.com', 'ksyuncdn.com', '360.cn'
+];
 
 function doh2CorsHeaders(extra = {}) {
   return {
@@ -398,24 +413,87 @@ function doh2NormalizePath(value) {
 
 function doh2Config(env = {}) {
   const privatePath = doh2NormalizePath(env.DOH2_PATH || env.PATH || env.TOKEN || DoH路径);
-  const preferred = (env.DOH2_UPSTREAM || env.UPSTREAM || 'cloudflare').toString().toLowerCase();
-  const upstreamKey = DOH2_UPSTREAMS[preferred] ? preferred : 'cloudflare';
+  const preferred = (env.DOH2_UPSTREAM || env.UPSTREAM || 'auto').toString().toLowerCase();
+  const upstreamKey = DOH2_UPSTREAMS[preferred] ? preferred : 'auto';
+  const domesticUpstream = DOH2_UPSTREAMS[(env.DOH2_DOMESTIC_UPSTREAM || 'alidns').toString().toLowerCase()] ? (env.DOH2_DOMESTIC_UPSTREAM || 'alidns').toString().toLowerCase() : 'alidns';
+  const foreignUpstream = DOH2_UPSTREAMS[(env.DOH2_FOREIGN_UPSTREAM || 'cloudflare').toString().toLowerCase()] ? (env.DOH2_FOREIGN_UPSTREAM || 'cloudflare').toString().toLowerCase() : 'cloudflare';
   const adblock = (env.DOH2_ADBLOCK || 'on').toString().toLowerCase() !== 'off';
-  return { privatePath, upstreamKey, adblock };
+  return { privatePath, upstreamKey, domesticUpstream, foreignUpstream, adblock };
 }
 
 function doh2Upstream(name, fallback) {
   const key = (name || fallback || 'cloudflare').toString().toLowerCase();
-  return DOH2_UPSTREAMS[key] || DOH2_UPSTREAMS.cloudflare;
+  const safeKey = key === 'auto' ? (fallback === 'auto' ? 'cloudflare' : fallback) : key;
+  return DOH2_UPSTREAMS[safeKey] || DOH2_UPSTREAMS.cloudflare;
+}
+
+function doh2NormalizeDomain(name) {
+  return (name || '').toString().trim().toLowerCase().replace(/^\.+|\.+$/g, '');
+}
+
+function doh2IsDomesticDomain(name) {
+  const domain = doh2NormalizeDomain(name);
+  if (!domain) return false;
+  return DOH2_DOMESTIC_SUFFIXES.some(suffix => domain === suffix || domain.endsWith('.' + suffix));
+}
+
+function doh2SelectUpstream(name, resolver, config) {
+  const requested = (resolver || config.upstreamKey || 'auto').toString().toLowerCase();
+  if (requested && requested !== 'auto') return doh2Upstream(requested, config.foreignUpstream);
+  const key = doh2IsDomesticDomain(name) ? config.domesticUpstream : config.foreignUpstream;
+  return doh2Upstream(key, config.foreignUpstream);
+}
+
+function doh2Base64UrlToBytes(value) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  const binary = atob(normalized);
+  return Uint8Array.from(binary, ch => ch.charCodeAt(0));
+}
+
+function doh2ReadQuestionName(bytes) {
+  if (!bytes || bytes.length < 13) return '';
+  let offset = 12;
+  const labels = [];
+  for (let i = 0; i < 128 && offset < bytes.length; i++) {
+    const len = bytes[offset++];
+    if (len === 0) break;
+    if ((len & 0xc0) === 0xc0) return labels.join('.');
+    if (offset + len > bytes.length) return '';
+    labels.push(String.fromCharCode(...bytes.slice(offset, offset + len)));
+    offset += len;
+  }
+  return labels.join('.');
+}
+
+function doh2HasAnswer(result) {
+  return Array.isArray(result?.Answer) && result.Answer.length > 0;
+}
+
+async function doh2QueryWithIpv6Fallback(upstream, name, type, autoFallback) {
+  const result = await queryDns(upstream.json, name, type);
+  if (autoFallback && type === 'A' && !doh2HasAnswer(result)) {
+    const ipv6Result = await queryDns(upstream.json, name, 'AAAA');
+    if (doh2HasAnswer(ipv6Result)) {
+      ipv6Result.resolver = upstream.label;
+      ipv6Result.query = { name, type: 'AAAA' };
+      ipv6Result.requestedType = 'A';
+      ipv6Result.autoFallback = 'AAAA';
+      ipv6Result.message = 'No A record was returned; showing AAAA records automatically.';
+      return ipv6Result;
+    }
+  }
+  result.resolver = upstream.label;
+  result.query = { name, type };
+  return result;
 }
 
 function doh2Html(config, host) {
   const base = `https://${host}`;
   const endpoint = `${base}/${config.privatePath}`;
-  const jsonUrl = `${base}/json?name=www.google.com&type=A&resolver=${config.upstreamKey}`;
+  const jsonUrl = `${base}/json?name=www.google.com&type=A&resolver=auto`;
   const upstreamOptions = Object.entries(DOH2_UPSTREAMS).map(([key, item]) => `<option value="${key}" ${key === config.upstreamKey ? 'selected' : ''}>${item.label}</option>`).join('');
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DoH 2.0</title><style>
-body{margin:0;background:#0b1020;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:880px;margin:0 auto;padding:28px 18px}.card{background:#111827;border:1px solid #263244;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 12px 30px #0004}h1{margin:0 0 8px;font-size:30px}.muted{color:#9ca3af}.grid{display:grid;grid-template-columns:1fr 130px 150px;gap:10px}@media(max-width:680px){.grid{grid-template-columns:1fr}}input,select,button{border-radius:12px;border:1px solid #374151;background:#0b1220;color:#e5e7eb;padding:12px;font-size:15px}button{background:#2563eb;border-color:#3b82f6;font-weight:700}code,pre{white-space:pre-wrap;word-break:break-all;background:#050814;border:1px solid #1f2937;border-radius:12px;padding:12px;display:block}.ok{color:#86efac}.warn{color:#fbbf24}</style></head><body><div class="wrap"><h1>DoH 2.0</h1><p class="muted">私密路径 + 多上游 + JSON 调试 + 广告域名拦截。不记录查询日志。</p><div class="card"><div class="muted">标准 DoH 地址</div><code>${endpoint}</code><p class="muted">JSON 调试接口</p><code>${jsonUrl}</code><p class="${config.adblock ? 'ok' : 'warn'}">AdBlock: ${config.adblock ? 'ON' : 'OFF'}</p></div><div class="card"><div class="grid"><input id="name" value="www.google.com" placeholder="domain"><select id="type"><option>A</option><option>AAAA</option><option>NS</option><option>TXT</option><option value="all">all</option></select><select id="resolver">${upstreamOptions}</select></div><p><button onclick="q()">查询</button></p><pre id="out">等待查询…</pre></div><div class="card"><p class="muted">客户端示例</p><code>Loon/Surge/Clash DoH: ${endpoint}</code><p class="muted">建议不要公开分享私密路径；如需更换，在 Cloudflare Worker 变量里设置 DOH2_PATH。</p></div></div><script>async function q(){const n=document.getElementById('name').value||'www.google.com';const t=document.getElementById('type').value;const r=document.getElementById('resolver').value;const res=await fetch('/json?name='+encodeURIComponent(n)+'&type='+encodeURIComponent(t)+'&resolver='+encodeURIComponent(r));document.getElementById('out').textContent=JSON.stringify(await res.json(),null,2)}q()</script></body></html>`;
+body{margin:0;background:#0b1020;color:#e5e7eb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:880px;margin:0 auto;padding:28px 18px}.card{background:#111827;border:1px solid #263244;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 12px 30px #0004}h1{margin:0 0 8px;font-size:30px}.muted{color:#9ca3af}.grid{display:grid;grid-template-columns:1fr 130px 150px;gap:10px}@media(max-width:680px){.grid{grid-template-columns:1fr}}input,select,button{border-radius:12px;border:1px solid #374151;background:#0b1220;color:#e5e7eb;padding:12px;font-size:15px}button{background:#2563eb;border-color:#3b82f6;font-weight:700}code,pre{white-space:pre-wrap;word-break:break-all;background:#050814;border:1px solid #1f2937;border-radius:12px;padding:12px;display:block}.ok{color:#86efac}.warn{color:#fbbf24}</style></head><body><div class="wrap"><h1>DoH 2.0</h1><p class="muted">私密路径 + 多上游 + JSON 调试 + 广告域名拦截；国内外域名自动分流；IPv4 无结果时自动展示 IPv6。不记录查询日志。</p><div class="card"><div class="muted">标准 DoH 地址</div><code>${endpoint}</code><p class="muted">JSON 调试接口</p><code>${jsonUrl}</code><p class="${config.adblock ? 'ok' : 'warn'}">AdBlock: ${config.adblock ? 'ON' : 'OFF'}</p></div><div class="card"><div class="grid"><input id="name" value="www.google.com" placeholder="domain"><select id="type"><option>A</option><option>AAAA</option><option>NS</option><option>TXT</option><option value="all">all</option></select><select id="resolver">${upstreamOptions}</select></div><p><button onclick="q()">查询</button></p><pre id="out">等待查询…</pre></div><div class="card"><p class="muted">客户端示例</p><code>Loon/Surge/Clash DoH: ${endpoint}</code><p class="muted">建议不要公开分享私密路径；如需更换，在 Cloudflare Worker 变量里设置 DOH2_PATH。</p></div></div><script>async function q(){const n=document.getElementById('name').value||'www.google.com';const t=document.getElementById('type').value;const r=document.getElementById('resolver').value;const res=await fetch('/json?name='+encodeURIComponent(n)+'&type='+encodeURIComponent(t)+'&resolver='+encodeURIComponent(r));document.getElementById('out').textContent=JSON.stringify(await res.json(),null,2)}q()</script></body></html>`;
 }
 
 async function doh2HandleJson(request, env) {
@@ -426,31 +504,43 @@ async function doh2HandleJson(request, env) {
   const resolver = url.searchParams.get('resolver') || config.upstreamKey;
   if (config.adblock && isAdBlockedDomain(name)) return blockedDnsJsonResponse(name, type);
   if (type === 'ALL') {
-    const upstream = doh2Upstream(resolver, config.upstreamKey);
+    const upstream = doh2SelectUpstream(name, resolver, config);
     const a = await queryDns(upstream.json, name, 'A');
     const aaaa = await queryDns(upstream.json, name, 'AAAA');
     const ns = await queryDns(upstream.json, name, 'NS');
     return doh2Json({ resolver: upstream.label, name, type: 'all', Answer: [...(a.Answer || []), ...(aaaa.Answer || []), ...(ns.Answer || [])], ipv4: { records: a.Answer || [] }, ipv6: { records: aaaa.Answer || [] }, ns: { records: ns.Answer || ns.Authority || [] }, raw: { A: a, AAAA: aaaa, NS: ns } });
   }
-  const upstream = doh2Upstream(resolver, config.upstreamKey);
-  const result = await queryDns(upstream.json, name, type);
-  result.resolver = upstream.label;
-  result.query = { name, type };
+  const upstream = doh2SelectUpstream(name, resolver, config);
+  const autoFallback = !url.searchParams.has('fallback') || url.searchParams.get('fallback') !== 'off';
+  const result = await doh2QueryWithIpv6Fallback(upstream, name, type, autoFallback);
+  result.split = resolver === 'auto' ? (doh2IsDomesticDomain(name) ? 'domestic' : 'foreign') : 'manual';
   return doh2Json(result);
 }
 
 async function doh2HandleWire(request, env) {
   const config = doh2Config(env);
   const url = new URL(request.url);
-  const upstream = doh2Upstream(url.searchParams.get('resolver'), config.upstreamKey);
+  let questionName = url.searchParams.get('name') || '';
+  let bodyBytes = null;
+  if (!questionName && request.method === 'GET' && url.searchParams.has('dns')) {
+    try { questionName = doh2ReadQuestionName(doh2Base64UrlToBytes(url.searchParams.get('dns'))); } catch (_) { questionName = ''; }
+  }
+  if (request.method === 'POST') {
+    bodyBytes = await request.arrayBuffer();
+    try { questionName = doh2ReadQuestionName(new Uint8Array(bodyBytes)); } catch (_) { questionName = ''; }
+  }
+  const resolver = url.searchParams.get('resolver') || config.upstreamKey;
+  const upstream = doh2SelectUpstream(questionName, resolver, config);
   const headers = new Headers();
   headers.set('Accept', request.method === 'GET' && url.searchParams.has('name') ? 'application/dns-json' : 'application/dns-message');
   const target = new URL(upstream.wire);
   if (request.method === 'GET') target.search = url.search;
-  const init = request.method === 'POST' ? { method: 'POST', headers: { 'Accept': 'application/dns-message', 'Content-Type': 'application/dns-message' }, body: request.body } : { headers };
+  const init = request.method === 'POST' ? { method: 'POST', headers: { 'Accept': 'application/dns-message', 'Content-Type': 'application/dns-message' }, body: bodyBytes } : { headers };
   const response = await fetch(target.toString(), init);
   const responseHeaders = new Headers(response.headers);
   Object.entries(doh2CorsHeaders()).forEach(([k, v]) => responseHeaders.set(k, v));
+  responseHeaders.set('X-DoH2-Upstream', upstream.label);
+  if (questionName) responseHeaders.set('X-DoH2-Split', doh2IsDomesticDomain(questionName) ? 'domestic' : 'foreign');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
 }
 

@@ -3,8 +3,10 @@ import worker from '../_worker.js';
 const env = { DOH2_PATH: 'secret-dns', DOH2_UPSTREAM: 'cloudflare', DOH2_ADBLOCK: 'on' };
 let fetchCalls = 0;
 
+let lastFetchUrl = '';
 globalThis.fetch = async (url, init = {}) => {
   fetchCalls += 1;
+  lastFetchUrl = url.toString();
   const u = new URL(url);
   if (u.searchParams.get('name') === 'www.google.com') {
     return new Response(JSON.stringify({
@@ -16,6 +18,21 @@ globalThis.fetch = async (url, init = {}) => {
       CD: false,
       Question: [{ name: 'www.google.com', type: 1 }],
       Answer: [{ name: 'www.google.com', type: 1, TTL: 60, data: '142.250.72.196' }]
+    }), { headers: { 'content-type': 'application/dns-json' } });
+  }
+  if (u.searchParams.get('name') === 'ipv6-only.example') {
+    const type = u.searchParams.get('type');
+    if (type === 'AAAA') {
+      return new Response(JSON.stringify({
+        Status: 0,
+        Question: [{ name: 'ipv6-only.example', type: 28 }],
+        Answer: [{ name: 'ipv6-only.example', type: 28, TTL: 60, data: '2001:db8::1' }]
+      }), { headers: { 'content-type': 'application/dns-json' } });
+    }
+    return new Response(JSON.stringify({
+      Status: 0,
+      Question: [{ name: 'ipv6-only.example', type: 1 }],
+      Answer: []
     }), { headers: { 'content-type': 'application/dns-json' } });
   }
   if (init.method === 'POST' || u.searchParams.has('dns')) {
@@ -46,6 +63,38 @@ await assertOk('DoH2 JSON normal query', async () => {
   const res = await worker.fetch(new Request('https://example.com/json?name=www.google.com&type=A'), env);
   const data = await res.json();
   if (res.status !== 200 || data.Answer?.[0]?.data !== '142.250.72.196' || fetchCalls !== 1) throw new Error('bad json query');
+});
+
+
+
+await assertOk('DoH2 auto split sends domestic domain to AliDNS', async () => {
+  fetchCalls = 0;
+  lastFetchUrl = '';
+  const res = await worker.fetch(new Request('https://example.com/json?name=www.qq.com&type=A&resolver=auto'), env);
+  const data = await res.json();
+  if (!lastFetchUrl.startsWith('https://dns.alidns.com/resolve') || data.split !== 'domestic') throw new Error('domestic split failed: ' + lastFetchUrl);
+});
+
+await assertOk('DoH2 auto split sends foreign domain to Cloudflare', async () => {
+  fetchCalls = 0;
+  lastFetchUrl = '';
+  const res = await worker.fetch(new Request('https://example.com/json?name=www.google.com&type=A&resolver=auto'), env);
+  const data = await res.json();
+  if (!lastFetchUrl.startsWith('https://cloudflare-dns.com/dns-query') || data.split !== 'foreign') throw new Error('foreign split failed: ' + lastFetchUrl);
+});
+
+await assertOk('DoH2 JSON IPv4 falls back to IPv6 automatically', async () => {
+  fetchCalls = 0;
+  const res = await worker.fetch(new Request('https://example.com/json?name=ipv6-only.example&type=A'), env);
+  const data = await res.json();
+  if (data.Answer?.[0]?.data !== '2001:db8::1' || data.autoFallback !== 'AAAA' || data.query?.type !== 'AAAA' || fetchCalls !== 2) throw new Error('bad ipv6 fallback');
+});
+
+await assertOk('DoH2 JSON IPv6 fallback can be disabled', async () => {
+  fetchCalls = 0;
+  const res = await worker.fetch(new Request('https://example.com/json?name=ipv6-only.example&type=A&fallback=off'), env);
+  const data = await res.json();
+  if (data.Answer?.length !== 0 || data.autoFallback || data.query?.type !== 'A' || fetchCalls !== 1) throw new Error('fallback should be off');
 });
 
 await assertOk('DoH2 adblock does not call upstream', async () => {
