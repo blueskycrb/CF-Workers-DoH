@@ -9,3 +9,6 @@ enabled = true
 # Optional runtime variables can be configured in Cloudflare Pages/Workers settings.
 # DOH = "cloudflare-dns.com"
 # PATH = "dns-query"
+# DOH2_PATH = "dns-query"
+# DOH2_UPSTREAM = "cloudflare"
+# DOH2_ADBLOCK = "on"
